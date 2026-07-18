@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Next.js Build HTML Explorer</title>
+<style>
+body {
+    font-family: monospace;
+    padding:20px;
+    background:#111;
+    color:#eee;
+}
+
+textarea {
+    width:100%;
+    height:250px;
+    background:#222;
+    color:#fff;
+    border:1px solid #555;
+    padding:10px;
+}
+
+button {
+    padding:10px 20px;
+    margin:10px 5px;
+    cursor:pointer;
+}
+
+pre {
+    white-space:pre-wrap;
+    background:#222;
+    padding:15px;
+    overflow:auto;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Next.js HTML → Static HTML Converter</h1>
+
+<textarea id="input" placeholder="Next.js build後のHTMLを貼る"></textarea>
+
+<br>
+
+<button onclick="convert()">変換</button>
+<button onclick="copyResult()">コピー</button>
+
+<h2>変換結果</h2>
+<pre id="output"></pre>
+
+<h2>検出されたNext.jsデータ</h2>
+<pre id="next"></pre>
+
+
+<script>
+
+function formatHTML(html){
+
+    const parser = new DOMParser();
+
+    const doc = parser.parseFromString(
+        html,
+        "text/html"
+    );
+
+
+    // Next.js専用script検出
+    let nextData=[];
+
+    doc.querySelectorAll("script")
+    .forEach(script=>{
+
+        if(
+            script.id==="__NEXT_DATA__" ||
+            script.src.includes("_next")
+        ){
+
+            nextData.push(
+                script.outerHTML
+            );
+
+            script.remove();
+
+        }
+
+    });
+
+
+    // 整形用
+    function pretty(node, depth=0){
+
+        let result="";
+
+        let indent="  ".repeat(depth);
+
+
+        node.childNodes.forEach(child=>{
+
+            if(child.nodeType===3){
+
+                let text=child.textContent.trim();
+
+                if(text)
+                    result += indent + text + "\n";
+
+            }
+
+
+            if(child.nodeType===1){
+
+                result += indent +
+                    "<"+child.tagName.toLowerCase();
+
+
+                for(let attr of child.attributes){
+
+                    result +=
+                    ` ${attr.name}="${attr.value}"`;
+
+                }
+
+
+                result += ">\n";
+
+
+                result += pretty(
+                    child,
+                    depth+1
+                );
+
+
+                result += indent+
+                "</"+child.tagName.toLowerCase()+">\n";
+
+            }
+
+        });
+
+
+        return result;
+
+    }
+
+
+    return {
+        html:
+        "<!DOCTYPE html>\n"+
+        doc.documentElement.outerHTML
+        .replace(
+            /></g,
+            ">\n<"
+        ),
+
+        next:
+        nextData.join("\n\n")
+    };
+
+}
+
+
+
+function convert(){
+
+    let html =
+    document.getElementById("input")
+    .value;
+
+
+    let result =
+    formatHTML(html);
+
+
+    document.getElementById("output")
+    .textContent =
+    result.html;
+
+
+    document.getElementById("next")
+    .textContent =
+    result.next || "なし";
+
+}
+
+
+
+function copyResult(){
+
+    navigator.clipboard.writeText(
+        document.getElementById("output")
+        .textContent
+    );
+
+}
+
+</script>
+
+</body>
+</html>
